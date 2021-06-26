@@ -49,6 +49,7 @@ export default class TimeGutter extends Component {
               components={components}
               renderSlot={this.renderSlot}
               getters={getters}
+              isGutter={true}
             />
           )
         })}
