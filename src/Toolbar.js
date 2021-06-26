@@ -8,6 +8,8 @@ class Toolbar extends React.Component {
     let {
       localizer: { messages },
       label,
+      hidePrevious,
+      hideNext,
     } = this.props
 
     return (
@@ -19,18 +21,22 @@ class Toolbar extends React.Component {
           >
             {messages.today}
           </button>
-          <button
-            type="button"
-            onClick={this.navigate.bind(null, navigate.PREVIOUS)}
-          >
-            {messages.previous}
-          </button>
-          <button
-            type="button"
-            onClick={this.navigate.bind(null, navigate.NEXT)}
-          >
-            {messages.next}
-          </button>
+          {!hidePrevious && (
+            <button
+              type="button"
+              onClick={this.navigate.bind(null, navigate.PREVIOUS)}
+            >
+              {messages.previous}
+            </button>
+          )}
+          {!hideNext && (
+            <button
+              type="button"
+              onClick={this.navigate.bind(null, navigate.NEXT)}
+            >
+              {messages.next}
+            </button>
+          )}
         </span>
 
         <span className="rbc-toolbar-label">{label}</span>
@@ -74,6 +80,8 @@ Toolbar.propTypes = {
   localizer: PropTypes.object,
   onNavigate: PropTypes.func.isRequired,
   onView: PropTypes.func.isRequired,
+  hidePrevious: PropTypes.bool,
+  hideNext: PropTypes.bool,
 }
 
 export default Toolbar

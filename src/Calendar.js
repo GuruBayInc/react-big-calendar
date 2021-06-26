@@ -56,6 +56,12 @@ class Calendar extends React.Component {
     localizer: PropTypes.object.isRequired,
 
     /**
+     * Props passed to toolbar.
+     * e.g. {hidePrevious: true, hideNext: true}
+     */
+    toolbarProps: PropTypes.object,
+
+    /**
      * Props passed to main calendar `<div>`.
      *
      */
@@ -788,6 +794,7 @@ class Calendar extends React.Component {
 
   static defaultProps = {
     elementProps: {},
+    toolbarProps: { hidePrevious: false, hideNext: false },
     popup: false,
     toolbar: true,
     view: views.MONTH,
@@ -922,6 +929,7 @@ class Calendar extends React.Component {
     let {
       view,
       toolbar,
+      toolbarProps,
       events,
       backgroundEvents = [],
       style,
@@ -969,6 +977,7 @@ class Calendar extends React.Component {
             onView={this.handleViewChange}
             onNavigate={this.handleNavigate}
             localizer={localizer}
+            {...toolbarProps}
           />
         )}
         <View

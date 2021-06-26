@@ -15100,7 +15100,9 @@
     _proto.render = function render() {
       var _this$props = this.props,
         messages = _this$props.localizer.messages,
-        label = _this$props.label
+        label = _this$props.label,
+        hidePrevious = _this$props.hidePrevious,
+        hideNext = _this$props.hideNext
       return /*#__PURE__*/ React__default.createElement(
         'div',
         {
@@ -15119,22 +15121,24 @@
             },
             messages.today
           ),
-          /*#__PURE__*/ React__default.createElement(
-            'button',
-            {
-              type: 'button',
-              onClick: this.navigate.bind(null, navigate.PREVIOUS),
-            },
-            messages.previous
-          ),
-          /*#__PURE__*/ React__default.createElement(
-            'button',
-            {
-              type: 'button',
-              onClick: this.navigate.bind(null, navigate.NEXT),
-            },
-            messages.next
-          )
+          !hidePrevious &&
+            /*#__PURE__*/ React__default.createElement(
+              'button',
+              {
+                type: 'button',
+                onClick: this.navigate.bind(null, navigate.PREVIOUS),
+              },
+              messages.previous
+            ),
+          !hideNext &&
+            /*#__PURE__*/ React__default.createElement(
+              'button',
+              {
+                type: 'button',
+                onClick: this.navigate.bind(null, navigate.NEXT),
+              },
+              messages.next
+            )
         ),
         /*#__PURE__*/ React__default.createElement(
           'span',
@@ -15187,6 +15191,8 @@
     localizer: propTypes.object,
     onNavigate: propTypes.func.isRequired,
     onView: propTypes.func.isRequired,
+    hidePrevious: propTypes.bool,
+    hideNext: propTypes.bool,
   }
 
   /**
@@ -16359,6 +16365,7 @@
     _excluded2$1 = [
       'view',
       'toolbar',
+      'toolbarProps',
       'events',
       'backgroundEvents',
       'style',
@@ -16676,6 +16683,7 @@
       var _this$props4 = this.props,
         view = _this$props4.view,
         toolbar = _this$props4.toolbar,
+        toolbarProps = _this$props4.toolbarProps,
         events = _this$props4.events,
         _this$props4$backgrou = _this$props4.backgroundEvents,
         backgroundEvents =
@@ -16715,15 +16723,21 @@
           style: style,
         }),
         toolbar &&
-          /*#__PURE__*/ React__default.createElement(CalToolbar, {
-            date: current,
-            view: view,
-            views: viewNames,
-            label: label,
-            onView: this.handleViewChange,
-            onNavigate: this.handleNavigate,
-            localizer: localizer,
-          }),
+          /*#__PURE__*/ React__default.createElement(
+            CalToolbar,
+            _extends(
+              {
+                date: current,
+                view: view,
+                views: viewNames,
+                label: label,
+                onView: this.handleViewChange,
+                onNavigate: this.handleNavigate,
+                localizer: localizer,
+              },
+              toolbarProps
+            )
+          ),
         /*#__PURE__*/ React__default.createElement(
           View,
           _extends({}, props, {
@@ -16765,6 +16779,10 @@
 
   Calendar.defaultProps = {
     elementProps: {},
+    toolbarProps: {
+      hidePrevious: false,
+      hideNext: false,
+    },
     popup: false,
     toolbar: true,
     view: views.MONTH,
@@ -16789,6 +16807,12 @@
   }
   Calendar.propTypes = {
     localizer: propTypes.object.isRequired,
+
+    /**
+     * Props passed to toolbar.
+     * e.g. {hidePrevious: true, hideNext: true}
+     */
+    toolbarProps: propTypes.object,
 
     /**
      * Props passed to main calendar `<div>`.
