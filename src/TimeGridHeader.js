@@ -3,7 +3,6 @@ import clsx from 'clsx'
 import scrollbarSize from 'dom-helpers/scrollbarSize'
 import React from 'react'
 
-import * as dates from './utils/dates'
 import DateContentRow from './DateContentRow'
 import Header from './Header'
 import ResourceHeader from './ResourceHeader'
@@ -43,16 +42,17 @@ class TimeGridHeader extends React.Component {
           className={clsx(
             'rbc-header',
             className,
-            dates.eq(date, today, 'day') && 'rbc-today'
+            localizer.isSameDate(date, today) && 'rbc-today'
           )}
         >
           {drilldownView ? (
-            <a
-              href="#"
-              onClick={e => this.handleHeaderClick(date, drilldownView, e)}
+            <button
+              type="button"
+              className="rbc-button-link"
+              onClick={(e) => this.handleHeaderClick(date, drilldownView, e)}
             >
               {header}
-            </a>
+            </button>
           ) : (
             <span>{header}</span>
           )}
@@ -60,7 +60,7 @@ class TimeGridHeader extends React.Component {
       )
     })
   }
-  renderRow = resource => {
+  renderRow = (resource) => {
     let {
       events,
       rtl,
@@ -76,7 +76,7 @@ class TimeGridHeader extends React.Component {
 
     const resourceId = accessors.resourceId(resource)
     let eventsToDisplay = resource
-      ? events.filter(event => accessors.resource(event) === resourceId)
+      ? events.filter((event) => accessors.resource(event) === resourceId)
       : events
 
     return (
@@ -85,6 +85,8 @@ class TimeGridHeader extends React.Component {
         rtl={rtl}
         getNow={getNow}
         minRows={2}
+        // Add +1 to include showMore button row in the row limit
+        maxRows={this.props.allDayMaxRows + 1}
         range={range}
         events={eventsToDisplay}
         resourceId={resourceId}
@@ -96,6 +98,7 @@ class TimeGridHeader extends React.Component {
         getters={getters}
         localizer={localizer}
         onSelect={this.props.onSelectEvent}
+        onShowMore={this.props.onShowMore}
         onDoubleClick={this.props.onDoubleClickEvent}
         onKeyPress={this.props.onKeyPressEvent}
         onSelectSlot={this.props.onSelectSlot}
@@ -129,7 +132,7 @@ class TimeGridHeader extends React.Component {
 
     let style = {}
     if (isOverflowing) {
-      style[rtl ? 'marginLeft' : 'marginRight'] = `${scrollbarSize()}px`
+      style[rtl ? 'marginLeft' : 'marginRight'] = `${scrollbarSize() - 1}px`
     }
 
     const groupedEvents = resources.groupEvents(events)
@@ -172,6 +175,8 @@ class TimeGridHeader extends React.Component {
               rtl={rtl}
               getNow={getNow}
               minRows={2}
+              // Add +1 to include showMore button row in the row limit
+              maxRows={this.props.allDayMaxRows + 1}
               range={range}
               events={groupedEvents.get(id) || []}
               resourceId={resource && id}
@@ -183,6 +188,7 @@ class TimeGridHeader extends React.Component {
               getters={getters}
               localizer={localizer}
               onSelect={this.props.onSelectEvent}
+              onShowMore={this.props.onShowMore}
               onDoubleClick={this.props.onDoubleClickEvent}
               onKeyPress={this.props.onKeyPressEvent}
               onSelectSlot={this.props.onSelectSlot}
@@ -216,11 +222,14 @@ TimeGridHeader.propTypes = {
   selectable: PropTypes.oneOf([true, false, 'ignoreEvents']),
   longPressThreshold: PropTypes.number,
 
+  allDayMaxRows: PropTypes.number,
+
   onSelectSlot: PropTypes.func,
   onSelectEvent: PropTypes.func,
   onDoubleClickEvent: PropTypes.func,
   onKeyPressEvent: PropTypes.func,
   onDrillDown: PropTypes.func,
+  onShowMore: PropTypes.func,
   getDrilldownView: PropTypes.func.isRequired,
   scrollRef: PropTypes.any,
 }

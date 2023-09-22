@@ -2,7 +2,6 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import EventRow from '../../EventRow'
 import Selection, { getBoundsForNode } from '../../Selection'
-import * as dates from '../../utils/dates'
 import { eventSegments } from '../../utils/eventLevels'
 import { getSlotAtX, pointInBox } from '../../utils/selection'
 import { dragAccessors, eventTimes } from './common'
@@ -17,6 +16,7 @@ class WeekWrapper extends React.Component {
     components: PropTypes.object.isRequired,
     resourceId: PropTypes.any,
     rtl: PropTypes.bool,
+    localizer: PropTypes.any,
   }
 
   static contextType = DnDContext
@@ -43,7 +43,8 @@ class WeekWrapper extends React.Component {
     const segment = eventSegments(
       { ...event, end, start, __isPreview: true },
       this.props.slotMetrics.range,
-      dragAccessors
+      dragAccessors,
+      this.props.localizer
     )
 
     const { segment: lastSegment } = this.state
@@ -61,35 +62,30 @@ class WeekWrapper extends React.Component {
   handleMove = (point, bounds, draggedEvent) => {
     if (!pointInBox(bounds, point)) return this.reset()
     const event = this.context.draggable.dragAndDropAction.event || draggedEvent
-    const { accessors, slotMetrics, rtl } = this.props
+    const { accessors, slotMetrics, rtl, localizer } = this.props
 
-    const slot = getSlotAtX(
-      bounds,
-      point.x,
-      rtl,
-      slotMetrics.slots
-    )
+    const slot = getSlotAtX(bounds, point.x, rtl, slotMetrics.slots)
 
     const date = slotMetrics.getDateForSlot(slot)
 
     // Adjust the dates, but maintain the times when moving
-    let { start, duration } = eventTimes(event, accessors)
-    start = dates.merge(date, start)
-    const end = dates.add(start, duration, 'milliseconds')
+    let { start, duration } = eventTimes(event, accessors, localizer)
+    start = localizer.merge(date, start)
+    const end = localizer.add(start, duration, 'milliseconds')
     // LATER: when dragging a multi-row event, only the first row is animating
     this.update(event, start, end)
   }
 
   handleDropFromOutside = (point, bounds) => {
     if (!this.context.draggable.onDropFromOutside) return
-    const { slotMetrics, rtl } = this.props
+    const { slotMetrics, rtl, localizer } = this.props
 
     const slot = getSlotAtX(bounds, point.x, rtl, slotMetrics.slots)
     const start = slotMetrics.getDateForSlot(slot)
 
     this.context.draggable.onDropFromOutside({
       start,
-      end: dates.add(start, 1, 'day'),
+      end: localizer.add(start, 1, 'day'),
       allDay: false,
     })
   }
@@ -101,9 +97,9 @@ class WeekWrapper extends React.Component {
 
   handleResize(point, bounds) {
     const { event, direction } = this.context.draggable.dragAndDropAction
-    const { accessors, slotMetrics, rtl } = this.props
+    const { accessors, slotMetrics, rtl, localizer } = this.props
 
-    let { start, end } = eventTimes(event, accessors)
+    let { start, end } = eventTimes(event, accessors, localizer)
 
     const slot = getSlotAtX(bounds, point.x, rtl, slotMetrics.slots)
     const date = slotMetrics.getDateForSlot(slot)
@@ -112,19 +108,21 @@ class WeekWrapper extends React.Component {
     if (direction === 'RIGHT') {
       if (cursorInRow) {
         if (slotMetrics.last < start) return this.reset()
-        end = dates.add(date, 1, 'day')
+        if (localizer.eq(localizer.startOf(end, 'day'), end))
+          end = localizer.add(date, 1, 'day')
+        else end = date
       } else if (
-        dates.inRange(start, slotMetrics.first, slotMetrics.last) ||
+        localizer.inRange(start, slotMetrics.first, slotMetrics.last) ||
         (bounds.bottom < point.y && +slotMetrics.first > +start)
       ) {
-        end = dates.add(slotMetrics.last, 1, 'milliseconds')
+        end = localizer.add(slotMetrics.last, 1, 'milliseconds')
       } else {
         this.setState({ segment: null })
         return
       }
       const originalEnd = accessors.end(event)
-      end = dates.merge(end, originalEnd)
-      if (dates.lt(end, start)) {
+      end = localizer.merge(end, originalEnd)
+      if (localizer.lt(end, start)) {
         end = originalEnd
       }
     } else if (direction === 'LEFT') {
@@ -132,17 +130,17 @@ class WeekWrapper extends React.Component {
         if (slotMetrics.first > end) return this.reset()
         start = date
       } else if (
-        dates.inRange(end, slotMetrics.first, slotMetrics.last) ||
-        (bounds.top > point.y && dates.lt(slotMetrics.last, end))
+        localizer.inRange(end, slotMetrics.first, slotMetrics.last) ||
+        (bounds.top > point.y && localizer.lt(slotMetrics.last, end))
       ) {
-        start = dates.add(slotMetrics.first, -1, 'milliseconds')
+        start = localizer.add(slotMetrics.first, -1, 'milliseconds')
       } else {
         this.reset()
         return
       }
       const originalStart = accessors.start(event)
-      start = dates.merge(start, originalStart)
-      if (dates.gt(start, end)) {
+      start = localizer.merge(start, originalStart)
+      if (localizer.gt(start, end)) {
         start = originalStart
       }
     }
@@ -153,10 +151,16 @@ class WeekWrapper extends React.Component {
   _selectable = () => {
     let node = this.ref.current.closest('.rbc-month-row, .rbc-allday-cell')
     let container = node.closest('.rbc-month-view, .rbc-time-view')
+    let isMonthRow = node.classList.contains('rbc-month-row')
 
-    let selector = (this._selector = new Selection(() => container))
+    // Valid container check only necessary in TimeGrid views
+    let selector = (this._selector = new Selection(() => container, {
+      validContainers: [
+        ...(!isMonthRow ? ['.rbc-day-slot', '.rbc-allday-cell'] : []),
+      ],
+    }))
 
-    selector.on('beforeSelect', point => {
+    selector.on('beforeSelect', (point) => {
       const { isAllDay } = this.props
       const { action } = this.context.draggable.dragAndDropAction
       const bounds = getBoundsForNode(node)
@@ -166,7 +170,7 @@ class WeekWrapper extends React.Component {
       )
     })
 
-    selector.on('selecting', box => {
+    selector.on('selecting', (box) => {
       const bounds = getBoundsForNode(node)
       const { dragAndDropAction } = this.context.draggable
       if (dragAndDropAction.action === 'move') this.handleMove(box, bounds)
@@ -175,7 +179,7 @@ class WeekWrapper extends React.Component {
 
     selector.on('selectStart', () => this.context.draggable.onStart())
 
-    selector.on('select', point => {
+    selector.on('select', (point) => {
       const bounds = getBoundsForNode(node)
       if (!this.state.segment) return
       if (!pointInBox(bounds, point)) {
@@ -185,14 +189,14 @@ class WeekWrapper extends React.Component {
       }
     })
 
-    selector.on('dropFromOutside', point => {
+    selector.on('dropFromOutside', (point) => {
       if (!this.context.draggable.onDropFromOutside) return
       const bounds = getBoundsForNode(node)
       if (!pointInBox(bounds, point)) return
       this.handleDropFromOutside(point, bounds)
     })
 
-    selector.on('dragOverFromOutside', point => {
+    selector.on('dragOverFromOutside', (point) => {
       if (!this.context.draggable.dragFromOutsideItem) return
       const bounds = getBoundsForNode(node)
 
